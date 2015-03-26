@@ -22,12 +22,14 @@
         print cl.sql('select * from a')
 
 """
+import os
 
 import warnings
 import urlparse
+import httplib2
 import oauth2 as oauth
 import urllib
-import httplib2
+import requests
 
 try:
     import json
@@ -47,7 +49,14 @@ class CartoDBBase(object):
     MAX_GET_QUERY_LEN = 2048
 
     def __init__(self, cartodb_domain, host='cartodb.com', protocol='https', api_version='v2'):
-        self.resource_url = RESOURCE_URL % {'user': cartodb_domain, 'domain': host, 'protocol': protocol, 'api_version': api_version}
+        self.cartodb_domain = cartodb_domain
+        self.host = host
+        self.protocol = protocol
+        self.api_version = api_version
+        self.resource_url = RESOURCE_URL % {'user': self.cartodb_domain,
+                                            'domain': self.host,
+                                            'protocol': self.protocol,
+                                            'api_version': self.api_version}
 
     def req(self, url, http_method="GET", http_headers=None, body=''):
         """
@@ -88,9 +97,6 @@ class CartoDBBase(object):
             raise CartoDBException('Unknown error occurred')
 
 
-        return None
-
-
 class CartoDBOAuth(CartoDBBase):
     """
     This client allows to auth in cartodb using oauth.
@@ -119,7 +125,6 @@ class CartoDBOAuth(CartoDBBase):
         # prepare client
         self.client = oauth.Client(consumer, token)
 
-
     def req(self, url, http_method="GET", http_headers=None, body=''):
         """ make an autorized request """
         resp, content = self.client.request(
@@ -144,7 +149,6 @@ class CartoDBAPIKey(CartoDBBase):
         if protocol != 'https':
             warnings.warn("you are using API key auth method with http")
 
-
     def req(self, url, http_method="GET", http_headers={}, body=''):
         api_key_param = 'api_key=' + self.api_key
         if http_method == "POST":
@@ -157,3 +161,29 @@ class CartoDBAPIKey(CartoDBBase):
             resp, content = self.client.request(url, headers=http_headers)
 
         return resp, content
+
+    def upload_data_frame(self, data_frame, name='data_frame'):
+        tmp_file_path = os.path.join('/tmp', name + '.csv')
+        data_frame.to_csv(tmp_file_path, index=False)
+        resp = self.upload_file(tmp_file_path)
+        if resp.status_code == 200:
+            os.remove(tmp_file_path)
+        return resp
+
+    def upload_file(self, file_path):
+        resp = requests.post(self.import_url,
+                             files={'file': open(file_path, 'rb')},
+                             params={'api_key': self.api_key,
+                                     'create_vis': True})
+
+        return resp
+
+    def check_file_status(self, file_id):
+        return requests.get('{}{}'.format(self.import_url, file_id), params={'api_key': self.api_key})
+
+
+    @property
+    def import_url(self):
+        return '{0}://{1}.{2}/api/v1/imports/'.format(self.protocol,
+                                                      self.cartodb_domain,
+                                                      self.host)
