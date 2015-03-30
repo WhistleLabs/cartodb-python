@@ -111,7 +111,7 @@ class CartoDBOAuth(CartoDBBase):
         client = oauth.Client(consumer, proxy_info=proxy_info)
         client.set_signature_method = oauth.SignatureMethod_HMAC_SHA1()
 
-        params = {}
+        params = dict()
         params["x_auth_username"] = email
         params["x_auth_password"] = password
         params["x_auth_mode"] = 'client_auth'
@@ -142,7 +142,7 @@ class CartoDBAPIKey(CartoDBBase):
     this method is easier than use the oauth authentification but if less secure, it is recommended to use only using the https endpoint
     """
 
-    def __init__(self, api_key, cartodb_domain, host='cartodb.com', protocol='https', proxy_info=None, *args, **kwargs):
+    def __init__(self, api_key, cartodb_domain, host='cartodb.com', protocol='https', *args, **kwargs):
         super(CartoDBAPIKey, self).__init__(cartodb_domain, host, protocol, *args, **kwargs)
         self.api_key = api_key
         self.client = httplib2.Http()
@@ -180,7 +180,6 @@ class CartoDBAPIKey(CartoDBBase):
 
     def check_file_status(self, file_id):
         return requests.get('{}{}'.format(self.import_url, file_id), params={'api_key': self.api_key})
-
 
     @property
     def import_url(self):

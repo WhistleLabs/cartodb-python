@@ -3,5 +3,7 @@
 *.pyc
 secret.py
 env
+.idea
+cartodb.egg-info
 
 
